@@ -1,62 +1,25 @@
-// 组件接口
-class TextMessage {
-  constructor(message) {
-    this.message = message;
-  }
-
-  getText() {
-    return this.message;
-  }
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+function classDecorator1(str) {
+    console.log('classDecorator1函数的参数: ', str);
+    return function (target) {
+        console.log('classDecorator1类装饰器: ', str);
+    };
 }
-
-// 装饰器的基类
-class MessageDecorator {
-  constructor(textMessage) {
-    this.textMessage = textMessage;
-  }
-
-  getText() {
-    return this.textMessage.getText();
-  }
+function classDecorator2(str) {
+    console.log('classDecorator2函数的参数: ', str);
+    return function (target) {
+        console.log('classDecorator2类装饰器: ', str);
+    };
 }
-
-// 具体装饰器子类 --> HTML装饰器
-class HTMLDecorator extends MessageDecorator {
-  getText() {
-    const msg = super.getText();
-    return `<p>${msg}</p>`;
-  }
-}
-
-// 具体装饰器子类 --> 加密装饰器
-class EncryptDecorator extends MessageDecorator {
-  getText() {
-    const msg = super.getText();
-    return this.encrypt(msg);
-  }
-  encrypt(msg) {
-    return btoa(msg);
-  }
-}
-
-// 具体装饰器子类 --> 解密装饰器
-class DecryptDecorator extends MessageDecorator {
-  getText() {
-    const msg = super.getText();
-    return this.decrypt(msg);
-  }
-  decrypt(msg) {
-    return atob(msg);
-  }
-}
-
-// 使用装饰器
-let message = new TextMessage('Hello World');
-message = new HTMLDecorator(message);
-
-let encryptMessage = new EncryptDecorator(message);
-encryptMessage = encryptMessage.getText();
-let decryptMessage = new DecryptDecorator(new TextMessage(encryptMessage));
-decryptMessage = decryptMessage.getText();
-
-console.log(`encryptMessage: ${encryptMessage} --> decryptMessage: ${decryptMessage}`);
+let A = class A {
+};
+A = __decorate([
+    classDecorator1('Jack'),
+    classDecorator2('Joker')
+], A);
