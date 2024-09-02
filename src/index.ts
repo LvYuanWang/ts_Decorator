@@ -1,131 +1,75 @@
-// 装饰器的作用: 为某些属性, 方法(方法参数), 类提供元数据信息(metadata)
-// 元数据: 描述数据的数据
-// 装饰器的本质其实就是一个函数
-// 装饰器是JS的内容, 是需要参与运行的
-
-// 由于装饰器还没有形成正式规范, 所以在TS中需要打开配置experimentalDecorators: true
-
-// 修饰类需要构造函数类型
-// 1. 简单的使用Function
-// 2. new (...args: any[]) => any
-// function classDecoration(target: new (...args: any[]) => any) {
-//   console.log('classDecoration');
-//   console.log('target:', target);
-//   target.prototype.name = 'Joker';
-// }
-
-// @classDecoration
-// class A { }
-
-// const a = new A();
-// console.log((a as any).name); // Joker
-
-// 使用泛型约束
+// 属性装饰器
+// 属性装饰器也是一个函数, 这个函数需要至少两个参数
+// 参数一: 如果是实例属性, 参数一是类的原型对象; 如果是静态属性, 参数一为类的本身
+// 参数二: 字符串类型, 表示属性名
 /*
-type constructor<T = any> = new (...args: any[]) => T;
-
-type User = {
-  id: number;
-  name: string;
-  info(): void;
+function d(target: any, key: string) {
+  console.log(target, key);
+  console.log(target === A.prototype)
 }
 
-function classDecoration<T extends constructor<User>>(target: T) {
-  console.log('classDecoration');
-  console.log('target:', target);
-  target.prototype.age = 19;
-}
-
-@classDecoration
 class A {
-  constructor(public id: number, public name: string) { }
-  info() {
-    console.log('info', this.id, this.name, (this as any).age);
+  @d
+  prop1: string;
+  @d
+  static prop2: string
+}
+*/
+
+// 属性装饰器也可以使用工厂模式
+/*
+function d(str: string) {
+  console.log(str);
+  return function (target: any, key: string) {
+    target[key] = str;  // 如果是实例属性, 这里str给到了原型属性上, 如果是静态属性, str给到了类本身
+    console.log(target, key);
   }
 }
 
-let a = new A(1, 'Joker');
-a.info();
-*/
-
-// 装饰器工厂: 返回一个装饰器
-/*
-type constructor<T = any> = new (...args: any[]) => T;
-function classDecorator<T extends constructor>(str: string) {
-  console.log(`这里其实就是普通方法: ${str}`);
-  return function (target: T) {
-    console.log('classDecorator');
-    console.log('target:', target);
-    console.log(`这里是类装饰器: ${str}`);
-    target.prototype.name = str;
-  }
+class A {
+  @d('hello')
+  prop1: string;
+  @d('world')
+  static prop2: string;
 }
+console.log(A.prototype)
+console.log(A)
 
-@classDecorator('Jack')
-class A { }
-
-let a = new A();
-console.log((a as any).name); // Jack
+const a = new A();
+console.log(Object.keys(a));  // ['prop1']
+console.log(Object.values(a));  // [undefined]
 */
 
-// 如果是返回一个类呢
-type constructor<T = any> = new (...args: any[]) => T;
-
-/*
-function classDecorator<T extends constructor>(target: T) {
-  return class extends target {
-    name = 'Joker';
-    newProperty = 'new property';
-    hello = 'override';
-    info() {
-      console.log('info', this.name, this.newProperty, this.hello);
+// 实现装饰器将值赋值给实例对象的属性
+function d(str: string) {
+  return function (target: any, key: string) {
+    if (!target.__initProperties) {
+      target.__initProperties = function () {
+        for (const prop in target.__props) {
+          this[prop] = target.__props[prop];
+        }
+      };
+      target.__props = {};
     }
-    show() {
-      console.log('This is show method');
+    target.__props[key] = str;
+  }
+}
+
+class A {
+  @d('hello')
+  prop1: string;
+  @d('world')
+  prop2: string;
+
+  constructor() {
+    // 判断有没有自己写的某个函数
+    if (typeof this["__initProperties"] === "function") {
+      this["__initProperties"]();
     }
   }
 }
 
-@classDecorator
-class A {
-  name = "Jack";
-  show() {
-    console.log('show')
-  }
-}
-
-let a = new A();
-console.log(a.name); // Joker
-a.show(); // This is show method
-(a as any).info(); // info Joker new property override
-*/
-
-// 多装饰器
-// 普通函数按照顺序执行
-// 装饰器按照从下到上, 从内到外执行
-function classDecorator1<T extends constructor>(str: string) {
-  console.log('classDecorator1函数的参数: ', str);
-  return function (target: T) {
-    console.log('classDecorator1类装饰器: ', str);
-  }
-}
-
-function classDecorator2<T extends constructor>(str: string) {
-  console.log('classDecorator2函数的参数: ', str);
-  return function (target: T) {
-    console.log('classDecorator2类装饰器: ', str);
-  }
-}
-
-// 先执行classDecorator1, 再执行classDecorator2, 从上到下执行, 从外到内执行
-// 如果有返回则从下到上执行
-@classDecorator1('Jack')
-@classDecorator2('Joker')
-class A { }
-/* 
-输出结果:
-classDecorator1函数的参数:  Jack
-classDecorator2函数的参数:  Joker
-classDecorator2类装饰器:  Joker
-classDecorator1类装饰器:  Jack
-*/
+const a = new A();
+console.log(a.prop1);
+console.log(a.prop2);
+console.log(Object.keys(a));
