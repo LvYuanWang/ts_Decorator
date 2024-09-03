@@ -5,35 +5,27 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-function d(str) {
-    return function (target, key) {
-        if (!target.__initProperties) {
-            target.__initProperties = function () {
-                for (const prop in target.__props) {
-                    this[prop] = target.__props[prop];
-                }
-            };
-            target.__props = {};
-        }
-        target.__props[key] = str;
-    };
+function d0(target, key) {
+    console.log(target, key);
+}
+function d1(target, key, descriptor) {
+    console.log(target, key, descriptor);
+}
+function d2(target, key, descriptor) {
+    console.log(target, key, descriptor);
 }
 class A {
     prop1;
-    prop2;
-    constructor() {
-        if (typeof this["__initProperties"] === "function") {
-            this["__initProperties"]();
-        }
-    }
+    static prop2;
+    method1() { }
+    static method2() { }
 }
 __decorate([
-    d('hello')
+    d0
 ], A.prototype, "prop1", void 0);
 __decorate([
-    d('world')
-], A.prototype, "prop2", void 0);
-const a = new A();
-console.log(a.prop1);
-console.log(a.prop2);
-console.log(Object.keys(a));
+    d1
+], A.prototype, "method1", null);
+__decorate([
+    d2
+], A, "method2", null);

@@ -1,116 +1,201 @@
-## 属性装饰器
+## 方法装饰器
 
-属性装饰器也是一个函数，该函数至少需要两个参数
+方法装饰器也是一个函数，该函数至少需要三个参数
 
-**参数一：**如果是静态属性，为类本身；如果是实例属性，为类的原型
+**参数一：**如果是静态方法，为类本身*(类构造函数类型)*；如果是实例方法，为类的原型*(对象类型)*
 
-**参数二：**字符串，表示属性名
+**参数二：**字符串，表示方法名
 
-```typescript
-function d(target: any, key: string) { 
-  console.log(target, key);
-  console.log(target === A.prototype);
-}
+**参数三：**属性描述对象，*其实就是js的Object.defineProperty()中的属性描述对象{value:xxx,writable:xxx, enumerable:xxx, configurable:xxx}*
 
-class A { 
-  @d
-  prop1: string;
-  @d
-  prop2: string;
-}
-```
-
-当然，属性装饰器也能写成工厂模式：
+上节课属性不是也讲过参数一也是这种情况吗？如果非要区分开静态方法和实例方法，其实分开设置也行：
 
 ```typescript
-function d() {
-  return function d(target: any, key: string) {
+function d0() {
+  return function d(target: Record<string,any>, key: string) {
     console.log(target, key)
+  }
+}
+function d1() {
+  return function d(target: Record<string,any>, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
+  }
+}
+function d2() {
+  return function d(target: new (...args:any[])=>any, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
   }
 }
 
 class A {
-  @d()
+  @d0()
   prop1: string;
-  @d()
   prop2: string;
+  @d1()
+  method1() { }
+  @d2()
+  static method2() { }
 }
 ```
 
-也可以传值进去
-
-```typescript
-function d(value: string) { 
-  return function d(target: any, key: string) { 
-    target[key] = value;
-  }
-}
-
-class A { 
-  @d("hello")
-  prop1: string;
-  @d("world")
-  prop2: string;
-}
-
-console.log(A.prototype);
-```
-
-**注意**，target是类的原型，因此这里赋值其实是赋值在类原型上的，而不是实例上。
-
-**当属性为静态属性时，target得到的结果是A的构造函数**
+为了减少讲解的麻烦，这里还是直接用any
 
 ```typescript
 function d() {
-  return function d(target: any, key: string) {
-    console.log(target, key)
+  return function d(target: any, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
   }
 }
 
 class A {
-  @d()
   prop1: string;
+  prop2: string;
   @d()
-  static prop2: string;
+  method1(){}
+}
+
+const objA = new A();
+
+for(let prop in objA){
+  console.log(prop)
 }
 ```
 
-> **补充：**当你尝试通过装饰器给属性赋值时，它实际上是在原型上设置了这些值，这意味着所有实例将共享这些属性值，而不是每个实例拥有自己的独立值。
->
-> 如果你要解决这个问题，你需要确保装饰器在每个类实例创建时为实例属性赋值。这通常是通过在构造函数中设置这些属性来完成的，但是由于装饰器不能直接访问类的构造函数，我们可以使用一点策略来解决。
->
-> 下面的做法需要设置：`"noImplicitAny": false,`
->
-> ```typescript
-> function d(value: string) {
->  return function (target: any, key: string) {
->    if (!target.__initProperties) {
->      target.__initProperties = function () {
->        for (let prop in target.__props) {
->          this[prop] = target.__props[prop];
->        }
->      };
->      target.__props = {};
->    }
->    target.__props[key] = value;
->  };
-> }
-> 
-> class A {
->  @d("hello")
->  prop1: string;
-> 
->  @d("world")
->  prop2: string;
-> 
->  constructor() {
->    if (typeof this["__initProperties"] === "function") {
->      this["__initProperties"]();
->    }
->  }
-> }
-> 
-> const a = new A();
-> console.log(a.prop1); // Output: "hello"
-> console.log(a.prop2); // Output: "world"
-> ```
+结果：
+
+```shell
+{} method1 {
+  value: [Function: method1],
+  writable: true,
+  enumerable: false,
+  configurable: true
+}
+prop1
+prop2
+```
+
+通过结果可以看到，方法默认并没有遍历，因为`enumerable: false`，那我们完全可以通过属性描述符进行修改
+
+```typescript
+function enumerable() {
+  return function d(target: any, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
+    descriptor.enumerable = true;
+  }
+}
+
+class A {
+  prop1: string;
+  prop2: string;
+  @enumerable()
+  method1(){}
+}
+
+const objA = new A();
+
+for(let prop in objA){
+  console.log(prop)
+}
+```
+
+既然可以这么做，那么我们的操作性就大大增加了，比如我们完全可以修改属性描述符的value值，让其变为执行其他的内容
+
+```typescript
+function enumerable() {
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
+    descriptor.enumerable = true;
+  }
+}
+
+// 被废弃的方法
+function noUse() { 
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    descriptor.value = function () { 
+      console.log("被废弃的方法");
+    }
+  }
+}
+
+class A {
+  prop1: string;
+  prop2: string;
+  @enumerable()
+  method1() { }
+  
+  @enumerable()
+  @noUse()  
+  method2() {
+    console.log("正常执行......")
+  }
+}
+
+const objA = new A();
+
+for(let prop in objA){
+  console.log(prop)
+}
+// 执行被废弃的方法
+objA.method2();
+```
+
+甚至于，我们还能实现方法的拦截器
+
+```typescript
+function enumerable() {
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    console.log(target, key, descriptor)
+    descriptor.enumerable = true;
+  }
+}
+
+// 被废弃的方法
+function noUse() { 
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    descriptor.value = function () { 
+      console.log("被废弃的方法");
+    }
+  }
+}
+
+function interceptor(str: string) { 
+  return function (target: any, key: string, descriptor: PropertyDescriptor) {
+    const temp = descriptor.value;
+    descriptor.value = function (...args: any[]) { 
+      console.log("前置拦截---" + str);
+      temp.call(this, args);
+      console.log("后置拦截---" + str);
+    }
+  }
+}
+
+class A {
+  prop1: string;
+  prop2: string;
+  @enumerable()
+  method1() { }
+  
+  @enumerable()
+  @noUse()  
+  method2() {
+    console.log("正常执行......")
+  }
+
+  @enumerable()
+  @interceptor("interceptor")
+  method3(str: string) {
+    console.log("正在执行 method3:" + str)
+  }
+}
+
+const objA = new A();
+
+for(let prop in objA){
+  console.log(prop)
+}
+// 执行被废弃的方法
+objA.method2();
+
+// 拦截
+objA.method3("hello world");
+```

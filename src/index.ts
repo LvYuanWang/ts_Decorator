@@ -1,75 +1,87 @@
-// 属性装饰器
-// 属性装饰器也是一个函数, 这个函数需要至少两个参数
-// 参数一: 如果是实例属性, 参数一是类的原型对象; 如果是静态属性, 参数一为类的本身
-// 参数二: 字符串类型, 表示属性名
+// 方法装饰器
+// 参数一: 如果是实例方法, 为类的原型(对象类型)。如果是静态方法, 为类本身(类构造函数类型)
+// 参数二: 字符串, 表示方法名
+// 参数三: 属性描述对象, 其实就是js的Object.defineProperty()中的属性描述对象{value: xxx, writable: xxx, enumerable: xxx, configurable: xxx}
 /*
-function d(target: any, key: string) {
-  console.log(target, key);
-  console.log(target === A.prototype)
+function d0(target: Record<string, any>, key: string) {
+  console.log(target, key)
+}
+
+function d1(target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
+  console.log(target, key, descriptor)
+}
+
+function d2(target: new (...args: any[]) => any, key: string, descriptor: PropertyDescriptor) {
+  console.log(target, key, descriptor)
 }
 
 class A {
-  @d
+  @d0
   prop1: string;
-  @d
-  static prop2: string
-}
-*/
-
-// 属性装饰器也可以使用工厂模式
-/*
-function d(str: string) {
-  console.log(str);
-  return function (target: any, key: string) {
-    target[key] = str;  // 如果是实例属性, 这里str给到了原型属性上, 如果是静态属性, str给到了类本身
-    console.log(target, key);
-  }
-}
-
-class A {
-  @d('hello')
-  prop1: string;
-  @d('world')
   static prop2: string;
-}
-console.log(A.prototype)
-console.log(A)
 
-const a = new A();
-console.log(Object.keys(a));  // ['prop1']
-console.log(Object.values(a));  // [undefined]
+  @d1
+  method1() { }
+
+  @d2
+  static method2() { }
+}
 */
 
-// 实现装饰器将值赋值给实例对象的属性
-function d(str: string) {
-  return function (target: any, key: string) {
-    if (!target.__initProperties) {
-      target.__initProperties = function () {
-        for (const prop in target.__props) {
-          this[prop] = target.__props[prop];
-        }
-      };
-      target.__props = {};
+// 工厂模式写法
+// 允许迭代装饰器
+function enumerable() {
+  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
+    descriptor.enumerable = true;
+    console.log(target, key, descriptor);
+  }
+}
+
+// 废弃方法装饰器
+function noUse(date: string) {
+  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
+    descriptor.value = function () {
+      console.log(`该方法于${date}已经废弃...`);
     }
-    target.__props[key] = str;
+  }
+}
+
+// 拦截方法装饰器
+function interceptor(interceptorFormer: string, interceptorAfter: string) {
+  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
+    const temp = descriptor.value;
+    descriptor.value = function (...args: any[]) {
+      console.log(`拦截前的操作 --> ${interceptorFormer}`);
+      temp.call(this, ...args);
+      console.log(`拦截后的操作 --> ${interceptorAfter}`);
+    }
   }
 }
 
 class A {
-  @d('hello')
   prop1: string;
-  @d('world')
   prop2: string;
 
-  constructor() {
-    // 判断有没有自己写的某个函数
-    if (typeof this["__initProperties"] === "function") {
-      this["__initProperties"]();
-    }
+  @enumerable()
+  method1() { }
+
+  @enumerable()
+  @noUse("2024-9-1")
+  method2() {
+    console.log('method2方法执行');
+  }
+
+  @enumerable()
+  @interceptor("开始执行method3方法", "method3方法执行完毕")
+  method3(str: string) {
+    console.log(`执行method3方法 --> ${str}`)
   }
 }
 
-const a = new A();
-console.log(a.prop1);
-console.log(a.prop2);
-console.log(Object.keys(a));
+console.log("--> 打印对象属性和方法 <--")
+const objA = new A();
+for (let prop in objA) {
+  console.log(prop);
+}
+objA.method2();
+objA.method3("hello");
