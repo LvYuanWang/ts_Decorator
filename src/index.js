@@ -5,27 +5,20 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-function d0(target, key) {
-    console.log(target, key);
-}
-function d1(target, key, descriptor) {
-    console.log(target, key, descriptor);
-}
-function d2(target, key, descriptor) {
-    console.log(target, key, descriptor);
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+function parameterDecorator(target, key, index) {
+    console.log(target, key, index);
 }
 class A {
-    prop1;
-    static prop2;
-    method1() { }
-    static method2() { }
+    method1(id, name) {
+        console.log(id, name);
+    }
 }
 __decorate([
-    d0
-], A.prototype, "prop1", void 0);
-__decorate([
-    d1
+    __param(0, parameterDecorator),
+    __param(1, parameterDecorator)
 ], A.prototype, "method1", null);
-__decorate([
-    d2
-], A, "method2", null);
+const objA = new A();
+objA.method1(1, "Joker");

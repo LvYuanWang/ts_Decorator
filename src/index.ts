@@ -1,87 +1,85 @@
 // 方法装饰器
 // 参数一: 如果是实例方法, 为类的原型(对象类型)。如果是静态方法, 为类本身(类构造函数类型)
 // 参数二: 字符串, 表示方法名
-// 参数三: 属性描述对象, 其实就是js的Object.defineProperty()中的属性描述对象{value: xxx, writable: xxx, enumerable: xxx, configurable: xxx}
+// 参数三: 属性描述对象, 其实就是js的Object.defineProperty()中的属性描述对象{set: Function, git: Function, enumerable: xxx, configurable: xxx}
+
+// descriptor: PropertyDescriptor
+// function d(str: string) {
+//   return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
+//     const temp = descriptor.set!;
+//     descriptor.set = function (...args: any[]) {
+//       console.log(`前置 --> ${str}`);
+//       temp.call(this, args);
+//       console.log(`后置 --> ${str}`)
+//     }
+//   }
+// }
+
 /*
-function d0(target: Record<string, any>, key: string) {
-  console.log(target, key)
+// descriptor也可以使用带泛型参数的类型TypedPropertyDescriptor<T>
+function d(str: string) {
+  return function <T>(target: Record<string, any>, key: string, descriptor: TypedPropertyDescriptor<T>) {
+    const temp = descriptor.set!;
+    descriptor.set = function (value: T) {
+      console.log(`前置 --> ${str}`);
+      temp.call(this, value);
+      console.log(`后置 --> ${str}`)
+    }
+  }
 }
 
-function d1(target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
-  console.log(target, key, descriptor)
+class User {
+  public id: number;
+  public name: string;
+  private _age: number;
+
+  // @d()
+  // method1() { }
+
+  @d("hello")
+  set age(value: number) {
+    console.log(`set age --> ${value}`)
+    this._age = value;
+  }
+
+  get age() {
+    return this._age;
+  }
 }
 
-function d2(target: new (...args: any[]) => any, key: string, descriptor: PropertyDescriptor) {
-  console.log(target, key, descriptor)
-}
-
-class A {
-  @d0
-  prop1: string;
-  static prop2: string;
-
-  @d1
-  method1() { }
-
-  @d2
-  static method2() { }
-}
+const u = new User();
+u.age = 10;
 */
 
-// 工厂模式写法
-// 允许迭代装饰器
-function enumerable() {
-  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
-    descriptor.enumerable = true;
-    console.log(target, key, descriptor);
-  }
-}
+// 方法参数装饰器
+// 参数一: 如果是静态方法, 为类本身; 如果是实例属性, 为类原型;
+// 参数二: 字符串, 表示方法名
+// 参数三: 数字, 表示参数顺序
 
-// 废弃方法装饰器
-function noUse(date: string) {
-  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
-    descriptor.value = function () {
-      console.log(`该方法于${date}已经废弃...`);
-    }
-  }
-}
+// function parameterDecorator(target: any, key: string, index: number) {
+//   console.log(target, key, index);
+// }
 
-// 拦截方法装饰器
-function interceptor(interceptorFormer: string, interceptorAfter: string) {
-  return function (target: Record<string, any>, key: string, descriptor: PropertyDescriptor) {
-    const temp = descriptor.value;
-    descriptor.value = function (...args: any[]) {
-      console.log(`拦截前的操作 --> ${interceptorFormer}`);
-      temp.call(this, ...args);
-      console.log(`拦截后的操作 --> ${interceptorAfter}`);
-    }
+// 工厂模式
+function parameterDecorator(propertyName: string) {
+  return function (target: any, key: string, index: number) {
+    console.log(target, key, index);
+    !target._prop && (target._prop = {});
+    target._prop[index] = propertyName;
   }
 }
 
 class A {
-  prop1: string;
-  prop2: string;
-
-  @enumerable()
-  method1() { }
-
-  @enumerable()
-  @noUse("2024-9-1")
-  method2() {
-    console.log('method2方法执行');
+  method1(@parameterDecorator("id") id: number, @parameterDecorator("name") name: string) {
+    console.log(id, name)
   }
 
-  @enumerable()
-  @interceptor("开始执行method3方法", "method3方法执行完毕")
-  method3(str: string) {
-    console.log(`执行method3方法 --> ${str}`)
+  static method2(@parameterDecorator("name") name: string, @parameterDecorator("age") age: number) {
+    console.log(name, age)
   }
 }
 
-console.log("--> 打印对象属性和方法 <--")
 const objA = new A();
-for (let prop in objA) {
-  console.log(prop);
-}
-objA.method2();
-objA.method3("hello");
+objA.method1(1, "Joker");
+console.log(A.prototype);
+console.log(A);
