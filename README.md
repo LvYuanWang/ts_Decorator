@@ -1,100 +1,180 @@
-## 访问器属性装饰器
+## [reflect-metadata](https://www.npmjs.com/package/reflect-metadata)
 
-**参数一：**类的原型(对象类型)
+`reflect-metadata` 是一个 JavaScript 库，用于在运行时访问和操作装饰器的元数据。它提供了一组 API，可以读取和写入装饰器相关的元数据信息。
 
-**参数二：**字符串，表示方法名
+我上面通过自己封装函数来处理类和类成员相关的元数据，但是相关能力比较薄弱，借助 Reflect-metadata 来解决提供元数据的处理能力。
 
-**参数三：** 属性描述对象，其实就是js的Object.defineProperty()中的属性描述对象{set:Function,get:Function, enumerable:xxx, configurable:xxx}
+### 安装
 
-```typescript
-function d(str: string) {
-  return function d<T>(target: any, key: string, descriptor: TypedPropertyDescriptor<T>) {
-    console.log(target, key)
-    const temp = descriptor.set!;
-    descriptor.set = function (value: T) {
-      console.log("前置", str)
-      temp.call(this, value);
-      console.log("后置", str)
-    }
-  }
-}
-
-class User{
-  public id: number;
-  public name: string;
-  private _age: number;
-
-  @d("hello")
-  set age(v: number) {
-    console.log("set", v);
-    this._age = v;
-  }
-}
-
-const u = new User();
-u.age = 10;
+```javascript
+npm install reflect-metadata
 ```
 
-## 方法参数装饰器
-
-方法参数几乎和属性装饰器一致，只是多了一个属性
-
-**参数一：**如果是静态属性，为类本身；如果是实例属性，为类的原型
-
-**参数二：**字符串，表示方法名
-
-**参数三：**表示参数顺序
+**`tsconfig.json`设置**
 
 ```typescript
-function paramDecorator(target: any, key: string, index: number) { 
-  console.log(target, key, index)
-}
-
-class A {
-  method1(@paramDecorator id: number, @paramDecorator name: string) { 
-    console.log("---", id, name)
-  }
-}
-
-const objA = new A();
-objA.method1(1, "hello");
+"experimentalDecorators": true,
+"emitDecoratorMetadata": true
 ```
 
-当然，也能写成工厂模式
+**引入**
 
 ```typescript
-function paramDecorator() { 
-  return function(target: any, key: string, index: number) { 
-    console.log(target, key, index)
-  }
-}
-
-class A {
-  method1(@paramDecorator() id: number, @paramDecorator() name: string) { 
-    console.log("---", id, name)
-  }
-}
-
-const objA = new A();
-objA.method1(1, "hello");
+import "reflect-metadata";
 ```
 
-我们稍微处理一下，在原型上加上属性看看效果：
+
+
+### 基本语法
+
+#### 定义元数据
+
+**声明性定义：**
 
 ```typescript
-function paramDecorator(paramName: string) { 
-  return function(target: any, key: string, index: number) { 
-    !target.__params && (target.__params = {});
-    target.__params[index] = paramName;
+@Reflect.metadata(metadataKey, metadataValue)
+```
+
+```typescript
+@Reflect.metadata("classType", "A类-1")
+class A { 
+  prop1: string;
+  method() { }
+}
+```
+
+**命令式定义：**
+
+```typescript
+Reflect.defineMetadata(metadataKey, metadataValue, 定义元数据的对象, propertyKey?);
+```
+
+```typescript
+class A { 
+  prop1: string;
+  method() { }
+}
+
+Reflect.defineMetadata("classType", "A类-2", A);
+```
+
+#### 获取元数据
+
+```typescript
+Reflect.getMetadata(metadataKey, 定义元数据类):返回metadataValue
+```
+
+```typescript
+console.log(Reflect.getMetadata("classType", A));
+```
+
+### 工厂模式
+
+也可以将上面的处理封装为工厂模式，使用起来更加方便
+
+**方式1：**
+
+```typescript
+const ClassTypeMetaKey = Symbol("classType");
+
+function ClassType(type: string) {
+  return Reflect.metadata(ClassTypeMetaKey, type);
+}
+
+@ClassType("A类-1")
+class A { 
+  prop1: string;
+  method() { }
+}
+
+console.log(Reflect.getMetadata(ClassTypeMetaKey, A));
+```
+
+**方式2：**
+
+```typescript
+type constructor<T = any> = new (...args: any[]) => T;
+
+const ClassTypeMetaKey = Symbol("classType");
+
+function ClassType(type: string) {
+  return <T extends constructor>(target:T) => {
+    Reflect.defineMetadata(ClassTypeMetaKey, type, target);
   }
 }
 
-class A {
-  method1(@paramDecorator("id") id: number, @paramDecorator("name") name: string) { 
-    console.log("---", id, name)
+@ClassType("A类-2")
+class A { 
+  prop1: string;
+  method() { }
+}
+
+console.log(Reflect.getMetadata(ClassTypeMetaKey, A));
+```
+
+### 成员属性和方法的处理
+
+基本语法API都基本差不多，不过属性和方法是有两种状态的，**实例的和静态的，对应的对象分别是对象原型和类本身**
+
+```typescript
+class A{
+  // @Reflect.metadata("propType1", "prop1-value")
+  prop1: string;
+  // @Reflect.metadata("propType2", "prop2-value")
+  static prop2: string;
+
+  @Reflect.metadata("methodType1","method1-value")
+  method1() { }
+
+  @Reflect.metadata("methodType2","method2-value")
+  static method2() {}
+}
+
+Reflect.defineMetadata("propType1", "prop1-value", A.prototype, "prop1");
+Reflect.defineMetadata("propType2", "prop2-value", A, "prop2");
+
+console.log(Reflect.getMetadata("propType1", A.prototype, "prop1"));
+console.log(Reflect.getMetadata("propType2", A, "prop2"));
+
+console.log(Reflect.getMetadata("methodType1", A.prototype, "method1"));
+console.log(Reflect.getMetadata("methodType2", A, "method2"));
+```
+
+我们可以稍微封装一下，简单的得到一些我们想要的效果:
+
+```typescript
+const formatMetadataKey = Symbol("format");
+function format(formatString: string) {
+  return Reflect.metadata(formatMetadataKey, formatString);
+}
+function getFormat(target: any, propertyKey: string) {
+  return Reflect.getMetadata(formatMetadataKey, target, propertyKey);
+}
+
+class Greeter {
+  @format("Hello, %s")
+  greeting: string;
+  constructor(message: string) {
+    this.greeting = message;
+  }
+  greet() {
+    let formatString = getFormat(this, "greeting");
+    return formatString.replace("%s", this.greeting);
   }
 }
 
-const objA = new A();
-console.log(A.prototype); // { __params: { '0': 'id', '1': 'name' } }
+const objG = new Greeter("world");
+// console.log(objG.greet()); // "Hello, world"
+
+const objG = new Greeter("world");
+// console.log(objG.greet());
+
+// greet封装在外面也是一样的道理
+function greet(obj: any, key: string) {
+  let formatString = getFormat(obj, key);
+  return formatString.replace("%s", obj[key]);
+}
+
+const g = greet(objG, "greeting");
+console.log(g);
 ```
