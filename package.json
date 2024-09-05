@@ -1,7 +1,7 @@
 {
   "name": "ts_decorator",
   "version": "1.0.0",
-  "description": "`reflect-metadata` 是一个 JavaScript 库，用于在运行时访问和操作装饰器的元数据。它提供了一组 API，可以读取和写入装饰器相关的元数据信息。",
+  "description": "给大家介绍两个基于[reflect-metadata](https://www.npmjs.com/package/reflect-metadata)元数据实现的比较有用的功能库",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
     "reflect-metadata": "^0.2.2"
   }
 }

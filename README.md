@@ -1,180 +1,141 @@
-## [reflect-metadata](https://www.npmjs.com/package/reflect-metadata)
+## [class-transformer](https://www.npmjs.com/package/class-transformer)
 
-`reflect-metadata` 是一个 JavaScript 库，用于在运行时访问和操作装饰器的元数据。它提供了一组 API，可以读取和写入装饰器相关的元数据信息。
+给大家介绍两个基于[reflect-metadata](https://www.npmjs.com/package/reflect-metadata)元数据实现的比较有用的功能库
 
-我上面通过自己封装函数来处理类和类成员相关的元数据，但是相关能力比较薄弱，借助 Reflect-metadata 来解决提供元数据的处理能力。
+[class-transformer](https://www.npmjs.com/package/class-transformer)可以很方便的将普通对象转换为类的某些实例，这个功能在某一些时候非常好用。
 
-### 安装
+比如我们在很多时候，从后端获取的数据，都是一些简单的json格式的数据，有些数据可能需要经过前端的再处理，如下：
 
-```javascript
-npm install reflect-metadata
+```json
+{
+  "id": 1,
+  "firstName": "Nancy",
+  "lastName": "Lopez",
+  "age": 35
+}
 ```
 
-**`tsconfig.json`设置**
+为了简单方便，可以使用远程的mock模拟数据，比如[easy mock](https://mock.mengxuegu.com/login)，直接简单登录之后即可使用，使用过程就两步：
+
+1、创建项目
+
+2、创建接口
+
+再复杂一点的时候可以自己去阅读网站的文档
+
+我们可以创建如下的简单数据
+
+```json
+{
+  code: 200,
+  "data|10": [{
+    "id|+1": 1,
+    "firstName": "@first",
+    "lastName": "@last",
+    "age|9-45": 1
+  }],
+  msg: "成功"
+}
+```
+
+从后端获取的是上面的数据，可能前端还需要一些功能，比如获取全名，比如判断是否成年，我们可以创建一个类进行封装处理
 
 ```typescript
-"experimentalDecorators": true,
-"emitDecoratorMetadata": true
+class User { 
+  id: number
+  firstName: string
+  lastName: string
+  age: number
+  
+  getFullName() { 
+    return this.firstName + " "+ this.lastName;
+  }
+
+  isAdult() { 
+    return this.age > 18 ? "成年人" : "未成年人";
+  }
+}
+
+// 模拟数据返回格式
+interface Result<T> {
+  code: number;
+  data: T;
+  msg: string
+}
 ```
 
-**引入**
+这在我们获取数据的时候，**如果直接获取的就是简单json数据，倒是没什么影响，但是不能访问自己封装的函数**
+
+```typescript
+fetch("https://mock.mengxuegu.com/mock/65b1f3d1c4cd67421b34cd0c/mock_ts/list")
+  .then(res => res.json())
+  .then( (res:Result<User[]>) => { 
+    console.log(res.code);
+    console.log(res.msg);
+
+    const users = res.data;
+
+    for (const u of users) {
+      console.log(u.id + " " + u.firstName);
+      // console.log(u.id + " " + u.getFullName() + " " + u.isAdult()); //error
+    }
+  })
+```
+
+这里，就可以使用`class-transformer`它可以自动的将数据和我们封装的类进行映射，使用也非常的简单
+
+```typescript
+import "reflect-metadata"
+import { plainToInstance } from 'class-transformer';
+
+fetch("https://mock.mengxuegu.com/mock/65b1f3d1c4cd67421b34cd0c/mock_ts/list")
+  .then(res => res.json())
+  .then( (res:Result<User[]>) => { 
+    console.log(res.code);
+    console.log(res.msg);
+
+    const users = res.data;
+    const us = plainToInstance(User, users);
+
+    for (const u of us) {
+      // console.log(u.id + " " + u.firstName);
+      console.log(u.id + " " + u.getFullName() + " " + u.isAdult());
+    }
+  })
+```
+
+这样就正常的获取了User类所修饰的内容
+
+## [class-validator](https://www.npmjs.com/package/class-validator)
+
+这个库同样是基于[reflect-metadata](https://www.npmjs.com/package/reflect-metadata)元数据实现的比较有用的功能库，通过名字大家就知道，这个库可以用来对类进行验证
+
+这个库使用也非常的简单，基本也就知晓两步就ok
+
+1、相关装饰器的绑定
+
+2、验证方法的调用
 
 ```typescript
 import "reflect-metadata";
-```
+import { validate, IsNotEmpty, Length, Min, Max, IsPhoneNumber } from "class-validator";
 
+class User {
+  @IsNotEmpty({ message: "账号不能为空" })
+  @Length(3, 5, { message: "账号必须是3-5个字符" })
+  loginId: string; 
 
+  @Min(9)
+  @Max(45)  
+  age: number;
 
-### 基本语法
-
-#### 定义元数据
-
-**声明性定义：**
-
-```typescript
-@Reflect.metadata(metadataKey, metadataValue)
-```
-
-```typescript
-@Reflect.metadata("classType", "A类-1")
-class A { 
-  prop1: string;
-  method() { }
-}
-```
-
-**命令式定义：**
-
-```typescript
-Reflect.defineMetadata(metadataKey, metadataValue, 定义元数据的对象, propertyKey?);
-```
-
-```typescript
-class A { 
-  prop1: string;
-  method() { }
+  @IsPhoneNumber("CN")
+  tel: string;
 }
 
-Reflect.defineMetadata("classType", "A类-2", A);
-```
+const u = new User();
 
-#### 获取元数据
-
-```typescript
-Reflect.getMetadata(metadataKey, 定义元数据类):返回metadataValue
-```
-
-```typescript
-console.log(Reflect.getMetadata("classType", A));
-```
-
-### 工厂模式
-
-也可以将上面的处理封装为工厂模式，使用起来更加方便
-
-**方式1：**
-
-```typescript
-const ClassTypeMetaKey = Symbol("classType");
-
-function ClassType(type: string) {
-  return Reflect.metadata(ClassTypeMetaKey, type);
-}
-
-@ClassType("A类-1")
-class A { 
-  prop1: string;
-  method() { }
-}
-
-console.log(Reflect.getMetadata(ClassTypeMetaKey, A));
-```
-
-**方式2：**
-
-```typescript
-type constructor<T = any> = new (...args: any[]) => T;
-
-const ClassTypeMetaKey = Symbol("classType");
-
-function ClassType(type: string) {
-  return <T extends constructor>(target:T) => {
-    Reflect.defineMetadata(ClassTypeMetaKey, type, target);
-  }
-}
-
-@ClassType("A类-2")
-class A { 
-  prop1: string;
-  method() { }
-}
-
-console.log(Reflect.getMetadata(ClassTypeMetaKey, A));
-```
-
-### 成员属性和方法的处理
-
-基本语法API都基本差不多，不过属性和方法是有两种状态的，**实例的和静态的，对应的对象分别是对象原型和类本身**
-
-```typescript
-class A{
-  // @Reflect.metadata("propType1", "prop1-value")
-  prop1: string;
-  // @Reflect.metadata("propType2", "prop2-value")
-  static prop2: string;
-
-  @Reflect.metadata("methodType1","method1-value")
-  method1() { }
-
-  @Reflect.metadata("methodType2","method2-value")
-  static method2() {}
-}
-
-Reflect.defineMetadata("propType1", "prop1-value", A.prototype, "prop1");
-Reflect.defineMetadata("propType2", "prop2-value", A, "prop2");
-
-console.log(Reflect.getMetadata("propType1", A.prototype, "prop1"));
-console.log(Reflect.getMetadata("propType2", A, "prop2"));
-
-console.log(Reflect.getMetadata("methodType1", A.prototype, "method1"));
-console.log(Reflect.getMetadata("methodType2", A, "method2"));
-```
-
-我们可以稍微封装一下，简单的得到一些我们想要的效果:
-
-```typescript
-const formatMetadataKey = Symbol("format");
-function format(formatString: string) {
-  return Reflect.metadata(formatMetadataKey, formatString);
-}
-function getFormat(target: any, propertyKey: string) {
-  return Reflect.getMetadata(formatMetadataKey, target, propertyKey);
-}
-
-class Greeter {
-  @format("Hello, %s")
-  greeting: string;
-  constructor(message: string) {
-    this.greeting = message;
-  }
-  greet() {
-    let formatString = getFormat(this, "greeting");
-    return formatString.replace("%s", this.greeting);
-  }
-}
-
-const objG = new Greeter("world");
-// console.log(objG.greet()); // "Hello, world"
-
-const objG = new Greeter("world");
-// console.log(objG.greet());
-
-// greet封装在外面也是一样的道理
-function greet(obj: any, key: string) {
-  let formatString = getFormat(obj, key);
-  return formatString.replace("%s", obj[key]);
-}
-
-const g = greet(objG, "greeting");
-console.log(g);
+validate(u).then(errors => { 
+  console.log(errors)
+})
 ```
